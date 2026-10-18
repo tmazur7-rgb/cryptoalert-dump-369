@@ -1,0 +1,10 @@
+{
+  "name": "CryptoDrop Alert - Мониторинг падения Топ 500 монет",
+  "description": "Система мониторинга и мгновенных уведомлений о падении криптовалют на 10-20% из Топ-500 монет на базе бесплатных открытых API (CoinCap, Binance, Bybit, CoinGecko, MEXC).",
+  "requestFramePermissions": [
+    "notifications"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
