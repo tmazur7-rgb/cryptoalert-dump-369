@@ -10,6 +10,10 @@ interface StatsBarProps {
   notificationPermission: NotificationPermission;
   isCmcActive?: boolean;
   catalogSource?: string;
+  onOpenMmScanner?: () => void;
+  onOpenFundPortfolio?: () => void;
+  onOpenAccumulation?: () => void;
+  onOpenLosers?: () => void;
 }
 
 export const StatsBar: React.FC<StatsBarProps> = ({
@@ -20,6 +24,10 @@ export const StatsBar: React.FC<StatsBarProps> = ({
   notificationPermission,
   isCmcActive,
   catalogSource,
+  onOpenMmScanner,
+  onOpenFundPortfolio,
+  onOpenAccumulation,
+  onOpenLosers,
 }) => {
   const is1h = rule.timeframe === '1h';
 
@@ -50,7 +58,8 @@ export const StatsBar: React.FC<StatsBarProps> = ({
   const exchangesLabel = rule.selectedExchanges.map((e) => e.toUpperCase()).join(', ');
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-4">
         <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
           <span className="flex items-center gap-1">
@@ -129,5 +138,60 @@ export const StatsBar: React.FC<StatsBarProps> = ({
         </div>
       </div>
     </div>
+
+    {(onOpenLosers || onOpenAccumulation || onOpenFundPortfolio || onOpenMmScanner) && (
+      <div className="mb-6 -mt-2 p-3 rounded-lg border border-slate-800 bg-gradient-to-r from-rose-950/20 via-slate-900 to-indigo-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-xs">
+            📉
+          </div>
+          <div>
+            <span className="font-semibold text-white">Быстрые разделы:</span>{' '}
+            <span className="text-slate-300">
+              Losers 24H (7 сайтов + TokenInsight API), Фаза аккумуляции китов и Портфель фондов (Tier 1/2).
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenLosers && (
+            <button
+              onClick={onOpenLosers}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-md font-semibold transition-colors flex items-center gap-1 whitespace-nowrap shadow-sm shadow-rose-950"
+            >
+              <span>Losers 24H (7 сайтов + TI)</span>
+              <span>→</span>
+            </button>
+          )}
+          {onOpenAccumulation && (
+            <button
+              onClick={onOpenAccumulation}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md font-semibold transition-colors flex items-center gap-1 whitespace-nowrap shadow-sm shadow-emerald-950"
+            >
+              <span>Аккумуляция</span>
+              <span>→</span>
+            </button>
+          )}
+          {onOpenFundPortfolio && (
+            <button
+              onClick={onOpenFundPortfolio}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-md font-semibold transition-colors flex items-center gap-1 whitespace-nowrap"
+            >
+              <span>Портфель Фондов</span>
+              <span>→</span>
+            </button>
+          )}
+          {onOpenMmScanner && (
+            <button
+              onClick={onOpenMmScanner}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md font-semibold transition-colors flex items-center gap-1 whitespace-nowrap"
+            >
+              <span>ММ / Флэт</span>
+              <span>→</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 };

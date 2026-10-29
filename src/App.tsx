@@ -18,6 +18,10 @@ import { TriggeredAlertsDrawer } from './components/TriggeredAlertsDrawer';
 import { SettingsModal } from './components/SettingsModal';
 import { ApiStatusModal } from './components/ApiStatusModal';
 import { CoinDetailModal } from './components/CoinDetailModal';
+import { MmRangeScanner } from './components/MmRangeScanner';
+import { FundPortfolioBuilder } from './components/FundPortfolioBuilder';
+import { AccumulationPhaseScanner } from './components/AccumulationPhaseScanner';
+import { LosersAggregatorSection } from './components/LosersAggregatorSection';
 import { playAlertSound } from './utils/audio';
 import {
   getNotificationPermissionStatus,
@@ -51,10 +55,12 @@ const DEFAULT_RULE: TriggerRule = {
   onlyTrackedCoins: false,
   cmcApiKey: '',
   useCmcCatalog: true,
+  tokenInsightApiKey: '',
+  useTokenInsight: true,
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'market' | 'alerts' | 'settings' | 'providers'>('market');
+  const [activeTab, setActiveTab] = useState<'market' | 'losers' | 'accumulation' | 'mm-scanner' | 'fund-portfolio' | 'alerts' | 'settings' | 'providers'>('market');
 
   const [dropPreset, setDropPreset] = useState<DropPreset>('5-20');
   const [scope, setScope] = useState<ScopePreset>(500);
@@ -160,6 +166,32 @@ export default function App() {
       return {
         ...prev,
         trackedCoins: [...prev.trackedCoins, newCoin],
+      };
+    });
+  };
+
+  const handleAddMultipleTrackedCoins = (
+    coinsList: { id: string; symbol: string; name: string; priceUsd: number }[]
+  ) => {
+    setRule((prev) => {
+      const existing = new Set(prev.trackedCoins.map((c) => c.symbol.toUpperCase()));
+      const newItems: TrackedCoinConfig[] = [];
+      for (const c of coinsList) {
+        if (prev.trackedCoins.length + newItems.length >= 10) break;
+        if (!existing.has(c.symbol.toUpperCase())) {
+          existing.add(c.symbol.toUpperCase());
+          newItems.push({
+            id: c.id,
+            symbol: c.symbol,
+            name: c.name,
+            targetDropPercent: prev.exactDropPercent || 5,
+          });
+        }
+      }
+      if (newItems.length === 0) return prev;
+      return {
+        ...prev,
+        trackedCoins: [...prev.trackedCoins, ...newItems],
       };
     });
   };
@@ -496,6 +528,10 @@ export default function App() {
               notificationPermission={notifPermission}
               isCmcActive={isCmcActive}
               catalogSource={catalogSource}
+              onOpenLosers={() => setActiveTab('losers')}
+              onOpenAccumulation={() => setActiveTab('accumulation')}
+              onOpenMmScanner={() => setActiveTab('mm-scanner')}
+              onOpenFundPortfolio={() => setActiveTab('fund-portfolio')}
             />
 
             {/* Drop Trends: Coins with highest drop acceleration over the last hour */}
@@ -550,6 +586,89 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === 'losers' && (
+          <LosersAggregatorSection
+            rule={rule}
+            onAddTrackedCoin={(c) => {
+              handleAddTrackedCoin({
+                id: c.id,
+                symbol: c.symbol,
+                name: c.name,
+                rank: 1,
+                priceUsd: c.priceUsd,
+                change24h: 0,
+                volume24h: 0,
+                source: 'TokenInsight / Losers Aggregator',
+                updatedAt: new Date().toISOString(),
+              });
+            }}
+            onOpenSettings={() => setActiveTab('settings')}
+            trackedCoinsSymbols={new Set(rule.trackedCoins.map((tc) => tc.symbol.toUpperCase()))}
+          />
+        )}
+
+        {activeTab === 'accumulation' && (
+          <AccumulationPhaseScanner
+            rule={rule}
+            onAddTrackedCoin={(c) => {
+              handleAddTrackedCoin({
+                id: c.id,
+                symbol: c.symbol,
+                name: c.name,
+                rank: 1,
+                priceUsd: c.priceUsd,
+                change24h: 0,
+                volume24h: 0,
+                source: 'Accumulation Scanner',
+                updatedAt: new Date().toISOString(),
+              });
+            }}
+            trackedCoinSymbols={new Set(rule.trackedCoins.map((tc) => tc.symbol.toUpperCase()))}
+          />
+        )}
+
+        {activeTab === 'mm-scanner' && (
+          <MmRangeScanner
+            rule={rule}
+            onAddTrackedCoin={(c) => {
+              handleAddTrackedCoin({
+                id: c.id,
+                symbol: c.symbol,
+                name: c.name,
+                rank: 1,
+                priceUsd: c.priceUsd,
+                change24h: 0,
+                volume24h: 0,
+                source: 'MM Scanner',
+                updatedAt: new Date().toISOString(),
+              });
+            }}
+            trackedCoinSymbols={new Set(rule.trackedCoins.map((tc) => tc.symbol.toUpperCase()))}
+          />
+        )}
+
+        {activeTab === 'fund-portfolio' && (
+          <FundPortfolioBuilder
+            coins={coins}
+            rule={rule}
+            onAddTrackedCoin={(c) => {
+              handleAddTrackedCoin({
+                id: c.id,
+                symbol: c.symbol,
+                name: c.name,
+                rank: 1,
+                priceUsd: c.priceUsd,
+                change24h: 0,
+                volume24h: 0,
+                source: 'Fund Portfolio',
+                updatedAt: new Date().toISOString(),
+              });
+            }}
+            onAddMultipleTrackedCoins={handleAddMultipleTrackedCoins}
+            trackedCoinSymbols={new Set(rule.trackedCoins.map((tc) => tc.symbol.toUpperCase()))}
+          />
+        )}
+
         {activeTab === 'alerts' && (
           <TriggeredAlertsDrawer
             alerts={alerts}
@@ -591,6 +710,7 @@ export default function App() {
         {activeTab === 'providers' && (
           <ApiStatusModal
             cmcApiKey={rule.cmcApiKey}
+            tokenInsightApiKey={rule.tokenInsightApiKey}
             onOpenSettings={() => setActiveTab('settings')}
           />
         )}

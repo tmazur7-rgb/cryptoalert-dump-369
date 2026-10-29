@@ -18,7 +18,7 @@ import {
   Zap,
   Check,
 } from 'lucide-react';
-import { TriggerRule, SoundType, SupportedExchange, CmcKeyStatus } from '../types/crypto';
+import { TriggerRule, SoundType, SupportedExchange, CmcKeyStatus, TokenInsightKeyStatus } from '../types/crypto';
 import { playAlertSound } from '../utils/audio';
 import { requestBrowserNotificationPermission, sendBrowserNotification } from '../utils/notifications';
 
@@ -52,6 +52,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     loading: boolean;
     status?: CmcKeyStatus;
   }>({ loading: false });
+
+  const [showTiKey, setShowTiKey] = useState<boolean>(false);
+  const [tiTestStatus, setTiTestStatus] = useState<{
+    loading: boolean;
+    status?: TokenInsightKeyStatus;
+  }>({ loading: false });
+
+  const handleTestTiKey = async () => {
+    const rawKey = rule.tokenInsightApiKey?.trim();
+    if (!rawKey) {
+      setTiTestStatus({
+        loading: false,
+        status: { valid: false, error: 'Введите ваш API-ключ TokenInsight (TI_API_KEY)' },
+      });
+      return;
+    }
+
+    setTiTestStatus({ loading: true });
+    try {
+      const res = await fetch('/api/crypto/tokeninsight/verify-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: rawKey }),
+      });
+      const data = await res.json();
+      if (data.success && data.valid) {
+        setTiTestStatus({
+          loading: false,
+          status: {
+            valid: true,
+            planName: data.planName || 'Open API',
+            rateLimitMinute: data.rateLimitMinute || 60,
+            checkedAt: new Date().toLocaleTimeString('ru-RU'),
+          },
+        });
+        setRule((prev) => ({ ...prev, useTokenInsight: true }));
+      } else {
+        setTiTestStatus({
+          loading: false,
+          status: {
+            valid: false,
+            error: data.error || 'Недействительный API-ключ TokenInsight',
+          },
+        });
+      }
+    } catch (err: any) {
+      setTiTestStatus({
+        loading: false,
+        status: {
+          valid: false,
+          error: err.message || 'Ошибка подключения к TokenInsight API',
+        },
+      });
+    }
+  };
 
   const handleTestCmcKey = async () => {
     const rawKey = rule.cmcApiKey?.trim();
@@ -337,6 +392,148 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <span className="text-[11px] text-slate-400">
               Бесплатно 10 000 кредитов/месяц (~333 запроса в день)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* TokenInsight API Key Configuration */}
+      <div className="bg-slate-900/60 border border-sky-500/30 rounded-lg p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 font-bold text-xs tracking-tighter">
+              TI
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white">TokenInsight API (TI_API_KEY)</h3>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                  {rule.tokenInsightApiKey ? 'Ключ добавлен' : 'Open API'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Используйте ваш API-ключ TokenInsight для прямого извлечения официального списка Top Losers 24H, рейтингов фондовых монет (AAA, AA, A) и институциональных портфелей
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://tokeninsight.com/en/cryptocurrencies/gainers-losers"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 hover:underline transition-colors font-medium"
+          >
+            <span>Страница Losers на TokenInsight</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <label className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
+            <Key className="w-3.5 h-3.5 text-sky-400" />
+            <span>Ваш API-ключ TokenInsight (заголовок TI_API_KEY):</span>
+          </label>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type={showTiKey ? 'text' : 'password'}
+                placeholder="Вставьте ваш TI_API_KEY (например, ti_live_xxxxxxxxxx)"
+                value={rule.tokenInsightApiKey || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRule((prev) => ({ ...prev, tokenInsightApiKey: val }));
+                  if (tiTestStatus.status) setTiTestStatus({ loading: false });
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-10 py-2 text-xs text-white font-mono-numbers focus:border-sky-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowTiKey(!showTiKey)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors p-1"
+                title={showTiKey ? 'Скрыть ключ' : 'Показать ключ'}
+              >
+                {showTiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTestTiKey}
+              disabled={tiTestStatus.loading || !rule.tokenInsightApiKey?.trim()}
+              className="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 shrink-0"
+            >
+              {tiTestStatus.loading ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Проверка...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Проверить ключ TokenInsight</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Test Status feedback */}
+          {tiTestStatus.status && tiTestStatus.status.valid && (
+            <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/50 space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                <CheckCircle className="w-4 h-4" />
+                <span>API-ключ TokenInsight валиден и готов к работе!</span>
+                <span className="text-[11px] text-slate-400 ml-auto font-normal">
+                  Проверено: {tiTestStatus.status.checkedAt}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                <div className="bg-slate-950/60 p-2 rounded border border-emerald-900/40">
+                  <span className="text-slate-400 block text-[10px]">Тариф / Доступ:</span>
+                  <span className="text-white font-bold">{tiTestStatus.status.planName}</span>
+                </div>
+                <div className="bg-slate-950/60 p-2 rounded border border-emerald-900/40">
+                  <span className="text-slate-400 block text-[10px]">Лимит запросов:</span>
+                  <span className="text-white font-bold">{tiTestStatus.status.rateLimitMinute ?? 60} req/m</span>
+                </div>
+                <div className="bg-slate-950/60 p-2 rounded border border-emerald-900/40">
+                  <span className="text-slate-400 block text-[10px]">Кэширование API:</span>
+                  <span className="text-sky-400 font-bold">Серверный кэш 30 сек</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tiTestStatus.status && !tiTestStatus.status.valid && (
+            <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/50 flex items-start gap-2 text-xs text-rose-300">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold block">Ошибка валидации ключа TokenInsight:</span>
+                <span>{tiTestStatus.status.error}</span>
+                <p className="mt-1 text-[11px] text-rose-400/80">
+                  Убедитесь, что скопировали ключ из личного кабинета TokenInsight API и вставили без лишних пробелов.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Toggle to use TokenInsight */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs border-t border-slate-800/60">
+            <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+              <input
+                type="checkbox"
+                checked={rule.useTokenInsight !== false && Boolean(rule.tokenInsightApiKey?.trim())}
+                onChange={(e) => setRule((prev) => ({ ...prev, useTokenInsight: e.target.checked }))}
+                disabled={!rule.tokenInsightApiKey?.trim()}
+                className="w-4 h-4 rounded text-sky-500 bg-slate-950 border-slate-800 focus:ring-sky-500 disabled:opacity-40"
+              />
+              <span className={rule.tokenInsightApiKey?.trim() ? 'text-white font-medium' : 'text-slate-500'}>
+                Активировать извлечение Top Losers 24H и рейтингов через TokenInsight API
+              </span>
+            </label>
+
+            <span className="text-[11px] text-slate-400">
+              Лимит: 60 запросов/мин (применяется серверный кэш)
             </span>
           </div>
         </div>
